@@ -7,6 +7,7 @@ import smtplib
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
 import pytz
+from openai import OpenAI
 from passlib.context import CryptContext
 from jose import jwt, JWTError
 from datetime import timedelta, datetime
@@ -134,6 +135,10 @@ def get_current_user_optional(authorization: str | None = Header(None)):
 
 # Load environment variables from .env file
 load_dotenv()
+# Also attempt to load a .env file located in the backend folder (when the
+# application is started from the project root this ensures backend/.env is
+# read and secrets such as OPENAI_API_KEY are available to the process).
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 # Validate critical environment variables at startup
 admin_token = os.getenv("ADMIN_TOKEN")
@@ -148,6 +153,19 @@ if not SECRET_KEY:
 
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "480"))
+
+# OpenAI API key (must be set in environment variable OPENAI_API_KEY)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+_openai_client = None
+if OPENAI_API_KEY:
+    try:
+        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+        print(f"✅ OpenAI client initialized successfully")
+    except Exception as e:
+        print(f"❌ OpenAI client initialization failed: {e}")
+        _openai_client = None
+else:
+    print(f"⚠️ OPENAI_API_KEY not found in environment")
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
@@ -746,54 +764,72 @@ def add_forum_post(data: dict, current_user: User = Depends(get_current_user)):
 # =====================================================
 @app.post("/chatbot")
 def chatbot_response(data: dict):
-    user_message = data["message"].lower().strip()
-    
-    # Available diseases from DISEASE_INFO
-    diseases = list(DISEASE_INFO.keys())
-    
-    # Detect disease mentioned in message
-    detected_disease = None
-    for disease in diseases:
-        if disease.lower() in user_message:
-            detected_disease = disease
-            break
-    
-    if not detected_disease:
-        return {"response": "I can help only with rice leaf diseases. Please specify the disease name."}
+    # Expecting JSON: { "message": "user question" }
+    user_message = (data.get("message") or "").strip()
 
+    if not user_message:
+        return {"reply": "Please provide a question.", "response": "Please provide a question."}
 
+    # Prepare system prompt (general AI assistant, not just rice diseases)
+    system_prompt = (
+        "You are RiceGuard AI Assistant, a helpful agricultural AI expert.\n"
+        "You can answer questions about rice farming, diseases, crop health, fertilizers, harvesting, and general agriculture.\n"
+        "You also answer general knowledge questions helpfully.\n"
+        "Respond clearly and concisely."
+    )
 
-    
-    # Define intent keywords
-    intents = {
-        "symptoms": ["symptom", "sign", "look like", "appear", "show"],
-        "treatment": ["treat", "cure", "medicine", "fix", "heal"],
-        "prevention": ["prevent", "avoid", "stop", "protect", "safe"],
-        "severity": ["severity", "level", "bad", "serious", "worse"]
-    }
-    
-    # Detect intent
-    detected_intent = None
-    for intent, keywords in intents.items():
-        if any(keyword in user_message for keyword in keywords):
-            detected_intent = intent
-            break
-    
-    if not detected_intent:
-        return {"response": "Please ask about symptoms, treatment, prevention, or severity of the disease."}
-    
-    # Get disease info (use High severity if available, else first available)
-    disease_data = DISEASE_INFO[detected_disease]
-    severity = "High" if "High" in disease_data else list(disease_data.keys())[0]
-    info = disease_data[severity]
-    
-    # Build response from DISEASE_INFO
-    if detected_intent in info and info[detected_intent]:
-        response = f"For {detected_disease} ({severity} severity): {', '.join(info[detected_intent])}"
+    # Build conversation for chat completion
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_message}
+    ]
+
+    print(f"🤖 Chatbot request: {user_message}")
+    print(f"🔑 OPENAI_API_KEY available: {bool(OPENAI_API_KEY)}")
+    print(f"🔌 _openai_client initialized: {_openai_client is not None}")
+
+    # Try OpenAI first if available
+    if OPENAI_API_KEY and _openai_client:
+        try:
+            print(f"📡 Sending to OpenAI...")
+            model_name = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
+            print(f"🎯 Using model: {model_name}")
+
+            completion = _openai_client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=500,
+            )
+
+            # Extract text from response
+            choice = completion.choices[0]
+            if hasattr(choice.message, 'content'):
+                reply_text = choice.message.content
+            else:
+                reply_text = str(choice.message.get('content', ''))
+
+            if reply_text:
+                print(f"✅ OpenAI response received: {reply_text[:50]}...")
+                return {"reply": reply_text.strip(), "response": reply_text.strip()}
+            else:
+                print(f"⚠️ Empty reply from OpenAI")
+                raise ValueError("Empty reply from LLM")
+
+        except Exception as e:
+            import traceback
+            print(f"❌ OpenAI error: {e}")
+            print(f"❌ Traceback: {traceback.format_exc()}")
+            # Fall through to generic response
     else:
-        response = "Information is not available. Please consult an agricultural expert."
-    
-    return {"response": response}
+        print(f"⚠️ OpenAI not configured, using generic response")
+
+    # Fallback response
+    print(f"📤 Returning generic response")
+    return {
+        "reply": "I'm here to help! Ask me about rice farming, diseases, crop health, or any other questions.",
+        "response": "I'm here to help! Ask me about rice farming, diseases, crop health, or any other questions."
+    }
 
 
 # =====================================================
