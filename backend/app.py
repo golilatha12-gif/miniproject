@@ -688,6 +688,80 @@ def list_promotions(request: Request,
 
 
 # =====================================================
+# ADMIN USERS ENDPOINT
+# =====================================================
+@app.get("/admin/users")
+def admin_get_users(request: Request, current_user: User | None = Depends(get_current_user_optional)):
+    """Get all users (admin-only endpoint).
+    
+    Access: requires `X-Admin-Token` or a logged-in admin user.
+    Returns: list of {id, email, role, created_at}
+    """
+    token = request.headers.get("X-Admin-Token")
+    is_admin_token = token is not None and token == admin_token
+    is_admin_role = getattr(current_user, "role", None) == "admin"
+    if not (is_admin_token or is_admin_role):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    db = SessionLocal()
+    try:
+        users = db.query(User).order_by(User.created_at.desc()).all()
+        
+        result = [
+            {
+                "id": u.id,
+                "email": u.email,
+                "role": getattr(u, "role", "user"),
+                "created_at": u.created_at.isoformat() if u.created_at else None
+            }
+            for u in users
+        ]
+        return result
+    finally:
+        db.close()
+
+
+# =====================================================
+# ADMIN ALL DETECTIONS ENDPOINT
+# =====================================================
+@app.get("/admin/all-detections")
+def admin_get_all_detections(request: Request, current_user: User | None = Depends(get_current_user_optional)):
+    """Get all detections across all users (admin-only endpoint).
+    
+    Access: requires `X-Admin-Token` or a logged-in admin user.
+    Returns: list of {id, disease, confidence, severity, user_email, created_at}
+    """
+    token = request.headers.get("X-Admin-Token")
+    is_admin_token = token is not None and token == admin_token
+    is_admin_role = getattr(current_user, "role", None) == "admin"
+    if not (is_admin_token or is_admin_role):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+    db = SessionLocal()
+    try:
+        detections = db.query(Detection).order_by(Detection.created_at.desc()).all()
+        
+        result = []
+        for d in detections:
+            # Get user email if user exists
+            user = db.query(User).filter(User.id == d.user_id).first()
+            user_email = user.email if user else None
+            
+            result.append({
+                "id": d.id,
+                "disease": d.disease,
+                "confidence": d.confidence,
+                "severity": d.severity,
+                "user_email": user_email,
+                "created_at": d.created_at.isoformat() if d.created_at else None
+            })
+        
+        return result
+    finally:
+        db.close()
+
+
+# =====================================================
 # GENERATE REPORT
 # =====================================================
 @app.post("/generate_report")

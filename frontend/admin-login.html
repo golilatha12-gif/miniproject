@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Login – RiceGuard AI</title>
+
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/pages.css">
+  <link rel="stylesheet" href="css/animations.css">
+
+  <style>
+    .auth-container {
+      width: 100%;
+      max-width: 400px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .admin-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: white;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+
+<body class="auth-body">
+
+<!-- BACKGROUND DECOR -->
+<div class="auth-bg">
+  <div class="blur-circle primary"></div>
+  <div class="blur-circle accent"></div>
+</div>
+
+<!-- ================= ADMIN LOGIN CARD ================= -->
+<div class="auth-container animate-fade">
+
+  <!-- LOGO -->
+  <div class="auth-logo">
+    🔐 <span>Admin<span class="primary-text">Guard</span></span>
+  </div>
+
+  <div class="card auth-card">
+    <h1>Admin Access</h1>
+    <p class="text-muted mb-4">Sign in with admin credentials</p>
+    <div class="admin-badge">⭐ ADMIN ONLY</div>
+
+    <form id="adminLoginForm">
+
+      <!-- EMAIL -->
+      <label>Email</label>
+      <input
+        type="email"
+        id="email"
+        class="input"
+        placeholder="admin@example.com"
+        required
+      />
+
+      <!-- PASSWORD -->
+      <label>Password</label>
+      <div class="password-field">
+        <input
+          type="password"
+          id="password"
+          class="input"
+          placeholder="••••••••"
+          required
+        />
+        <span id="togglePassword" class="toggle-icon">👁️</span>
+      </div>
+
+      <!-- SUBMIT -->
+      <button class="btn btn-primary full-width mt-6" type="submit">
+        Sign In as Admin
+      </button>
+
+    </form>
+
+    <!-- BACK TO LOGIN -->
+    <div class="text-center mt-6">
+      <p class="text-muted text-sm">
+        Not an admin? <a href="login.html" style="color: var(--primary);">Back to Login</a>
+      </p>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Auth utilities and admin-login logic -->
+<script src="js/auth_util.js"></script>
+<script src="js/admin.js"></script>
+
+</body>
+</html>
