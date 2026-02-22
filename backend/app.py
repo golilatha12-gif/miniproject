@@ -762,6 +762,76 @@ def admin_get_all_detections(request: Request, current_user: User | None = Depen
 
 
 # =====================================================
+# SUPER ADMIN ROLE MANAGEMENT
+# =====================================================
+@app.post("/admin/set-role")
+def admin_set_role(data: dict, current_user: User = Depends(get_current_user)):
+    """Set user role (super admin only: admin123@gmail.com).
+    
+    Access: requires logged-in user with email == "admin123@gmail.com"
+    Body: {"email": "...", "role": "admin" | "user"}
+    
+    Restrictions:
+    - Only admin123@gmail.com can use this
+    - Cannot change own role
+    - Audit logged in promotion_audit table
+    """
+    # Check if super admin
+    if getattr(current_user, "email", None) != "admin123@gmail.com":
+        raise HTTPException(status_code=403, detail="Super admin access only")
+
+    target_email = (data.get("email") or "").strip().lower()
+    target_role = data.get("role", "").strip().lower()
+
+    if not target_email:
+        raise HTTPException(status_code=400, detail="Email required")
+    if target_role not in ["admin", "user"]:
+        raise HTTPException(status_code=400, detail="Role must be 'admin' or 'user'")
+    
+    # Prevent super admin from changing own role
+    if target_email == "admin123@gmail.com":
+        raise HTTPException(status_code=400, detail="Super admin cannot change own role")
+
+    db = SessionLocal()
+    try:
+        target_user = db.query(User).filter(User.email == target_email).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        old_role = getattr(target_user, "role", "user")
+        target_user.role = target_role
+        db.add(target_user)
+        
+        # Audit log
+        audit = PromotionAudit(
+            admin_user_id=current_user.id,
+            admin_email=current_user.email,
+            target_user_id=target_user.id,
+            target_email=target_user.email,
+            method="super_admin",
+            note=f"Role change: {old_role} -> {target_role}"
+        )
+        db.add(audit)
+        db.commit()
+
+        return {
+            "message": f"User role updated to {target_role}",
+            "user_id": target_user.id,
+            "email": target_user.email,
+            "role": target_role
+        }
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Role update failed: {str(e)}")
+    finally:
+        db.close()
+
+
+# =====================================================
 # GENERATE REPORT
 # =====================================================
 @app.post("/generate_report")

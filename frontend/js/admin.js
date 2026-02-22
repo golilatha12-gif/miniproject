@@ -140,6 +140,9 @@
 
     try {
       const token = getToken();
+      const user = getStoredUser();
+      const isSuperAdmin = user && user.email === "admin123@gmail.com";
+
       const response = await fetch("http://127.0.0.1:8000/admin/users", {
         method: "GET",
         headers: getAuthHeaders()
@@ -158,7 +161,8 @@
 
       const users = await response.json();
 
-      // Build table HTML
+      // Build table HTML with Actions column for super admin
+      const actionHeader = isSuperAdmin ? '<th>Actions</th>' : '';
       let html = `
         <table>
           <thead>
@@ -167,24 +171,43 @@
               <th>Email</th>
               <th>Role</th>
               <th>Created At</th>
+              ${actionHeader}
             </tr>
           </thead>
           <tbody>
       `;
 
       if (users.length === 0) {
-        html += '<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No users found</td></tr>';
+        html += `<tr><td colspan="${isSuperAdmin ? 5 : 4}" style="text-align: center; color: var(--text-muted);">No users found</td></tr>`;
       } else {
         users.forEach((user) => {
           const roleBadge = user.role === "admin"
             ? `<span class="role-badge role-admin">ADMIN</span>`
             : `<span class="role-badge role-user">USER</span>`;
+          
+          // Build actions cell (only for super admin, not for super admin themselves)
+          let actionsCell = '';
+          if (isSuperAdmin && user.email !== "admin123@gmail.com") {
+            const promoteBtn = user.role === "user" 
+              ? `<button class="role-btn promote-btn" onclick="changeUserRole('${user.email}', 'admin')">Promote</button>`
+              : '';
+            const demoteBtn = user.role === "admin"
+              ? `<button class="role-btn demote-btn" onclick="changeUserRole('${user.email}', 'user')">Demote</button>`
+              : '';
+            actionsCell = `<td><div class="role-cell-actions">${promoteBtn}${demoteBtn}</div></td>`;
+          } else if (isSuperAdmin) {
+            actionsCell = '<td style="color: var(--text-muted); font-size: 12px;">Super Admin</td>';
+          } else {
+            actionsCell = '';
+          }
+
           html += `
             <tr>
               <td>${user.id}</td>
               <td>${user.email}</td>
               <td>${roleBadge}</td>
               <td>${user.created_at || "—"}</td>
+              ${actionsCell}
             </tr>
           `;
         });
@@ -301,5 +324,53 @@
       return null;
     }
   }
+
+  /**
+   * Change user role (super admin only)
+   * Exposed globally for onclick handlers
+   */
+  window.changeUserRole = async function(email, newRole) {
+    const user = getStoredUser();
+    if (!user || user.email !== "admin123@gmail.com") {
+      alert("Only super admin can change roles");
+      return;
+    }
+
+    const confirmed = confirm(`Change ${email} role to '${newRole}'?`);
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch("http://127.0.0.1:8000/admin/set-role", {
+        method: "POST",
+        headers: {
+          ...getAuthHeaders(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, role: newRole })
+      });
+
+      const data = await response.json();
+
+      if (response.status === 403) {
+        alert("Super admin access only");
+        return;
+      }
+
+      if (!response.ok) {
+        alert(`Error: ${data.detail || "Role change failed"}`);
+        return;
+      }
+
+      console.log(`✓ Role updated: ${email} -> ${newRole}`);
+      alert(`Role updated: ${email} is now ${newRole}`);
+      
+      // Refresh user table
+      loadUsersTable();
+
+    } catch (error) {
+      console.error("Error changing role:", error);
+      alert(`Failed to change role: ${error.message}`);
+    }
+  };
 
 })();
