@@ -831,6 +831,61 @@ def admin_set_role(data: dict, current_user: User = Depends(get_current_user)):
         db.close()
 
 
+@app.post("/admin/delete-user")
+def admin_delete_user(data: dict, current_user: User = Depends(get_current_user)):
+    """Delete a user (super admin only).
+
+    Body: { "email": "user@example.com" }
+    Restrictions:
+    - Only the super admin (`admin123@gmail.com`) may delete users via this endpoint.
+    - Super admin cannot delete themselves.
+    - Deletion cascades to related detections via ORM cascade rules.
+    """
+    # Check super admin
+    if getattr(current_user, "email", None) != "admin123@gmail.com":
+        raise HTTPException(status_code=403, detail="Super admin access only")
+
+    target_email = (data.get("email") or "").strip().lower()
+    if not target_email:
+        raise HTTPException(status_code=400, detail="Email required")
+
+    if target_email == "admin123@gmail.com":
+        raise HTTPException(status_code=400, detail="Super admin cannot be deleted")
+
+    db = SessionLocal()
+    try:
+        target_user = db.query(User).filter(User.email == target_email).first()
+        if not target_user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Delete user (cascade will remove detections)
+        tid = target_user.id
+        db.delete(target_user)
+
+        # Audit log the deletion
+        audit = PromotionAudit(
+            admin_user_id=current_user.id,
+            admin_email=current_user.email,
+            target_user_id=tid,
+            target_email=target_email,
+            method="delete",
+            note=data.get("note")
+        )
+        db.add(audit)
+        db.commit()
+
+        return {"message": "User deleted", "email": target_email, "user_id": tid}
+
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Delete failed: {str(e)}")
+    finally:
+        db.close()
+
+
 # =====================================================
 # GENERATE REPORT
 # =====================================================

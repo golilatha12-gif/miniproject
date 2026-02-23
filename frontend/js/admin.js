@@ -194,7 +194,8 @@
             const demoteBtn = user.role === "admin"
               ? `<button class="role-btn demote-btn" onclick="changeUserRole('${user.email}', 'user')">Demote</button>`
               : '';
-            actionsCell = `<td><div class="role-cell-actions">${promoteBtn}${demoteBtn}</div></td>`;
+            const deleteBtn = `<button class="role-btn delete-btn" onclick="deleteUser('${user.email}')">Delete</button>`;
+            actionsCell = `<td><div class="role-cell-actions">${promoteBtn}${demoteBtn}${deleteBtn}</div></td>`;
           } else if (isSuperAdmin) {
             actionsCell = '<td style="color: var(--text-muted); font-size: 12px;">Super Admin</td>';
           } else {
@@ -291,6 +292,54 @@
       `;
 
       container.innerHTML = html;
+
+
+    // Expose role/change/delete actions to global scope for inline onclick handlers
+    window.changeUserRole = async function(email, role) {
+      if (!confirm(`Are you sure you want to change ${email} to role ${role}?`)) return;
+      try {
+        const response = await fetch("http://127.0.0.1:8000/admin/set-role", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(window.getAuthHeaders ? window.getAuthHeaders() : {}) },
+          body: JSON.stringify({ email: email, role: role })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          alert(data.detail || data.error || "Failed to change role");
+          return;
+        }
+        alert(data.message || "Role updated");
+        // refresh table
+        loadUsersTable();
+      } catch (err) {
+        console.error("changeUserRole error:", err);
+        alert("Error changing role: " + err.message);
+      }
+    }
+
+    window.deleteUser = async function(email) {
+      if (!confirm(`Permanently delete user ${email}? This cannot be undone.`)) return;
+      try {
+        const response = await fetch("http://127.0.0.1:8000/admin/delete-user", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(window.getAuthHeaders ? window.getAuthHeaders() : {}) },
+          body: JSON.stringify({ email: email })
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          alert(data.detail || data.error || "Failed to delete user");
+          return;
+        }
+        alert(data.message || "User deleted");
+        // refresh table
+        loadUsersTable();
+      } catch (err) {
+        console.error("deleteUser error:", err);
+        alert("Error deleting user: " + err.message);
+      }
+    }
 
     } catch (error) {
       console.error("Error loading detections:", error);
