@@ -28,7 +28,7 @@ async function loadHistory() {
   try {
     // Get auth headers from centralized helper
     const headers = window.getAuthHeaders ? window.getAuthHeaders() : {};
-    const res = await fetch("http://127.0.0.1:8000/history", { method: "GET", headers });
+    const res = await fetch("http://localhost:8000/history", { method: "GET", headers });
     
     if (!res.ok) {
       console.error("Failed to load history:", res.status);
@@ -87,7 +87,7 @@ function render(rows) {
     tr.innerHTML = `
       <td>
         <img 
-          src="http://127.0.0.1:8000${item.original_image || ''}"
+          src="http://localhost:8000${item.original_image || ''}"
           width="48" height="48"
           onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIGZpbGw9IiNFRUVFRUUiLz48dGV4dCB4PSIyNCIgeT0iMjQiIGZpbGw9IiM5OTkiIHRleHQtYW5jaG9yPSJtaWRkbGUiPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='"
         />
@@ -131,7 +131,7 @@ function exportCSV() {
   const lines = [header.join(',')];
 
   rows.forEach(r => {
-    const img = r.original_image ? `http://127.0.0.1:8000${r.original_image}` : '';
+    const img = r.original_image ? `http://localhost:8000${r.original_image}` : '';
     const disease = (r.disease||'').replace(/"/g,'""');
     const severity = r.severity || '';
     const confidence = r.confidence || '';
@@ -179,7 +179,7 @@ async function performPermanentDelete() {
     // Delete sequentially to detect errors and handle restore if any fail
     for (const item of backupData) {
       try {
-        const res = await fetch(`http://127.0.0.1:8000/delete/${item.id}`, { method: 'DELETE', headers });
+        const res = await fetch(`http://localhost:8000/delete/${item.id}`, { method: 'DELETE', headers });
         if (!res.ok) throw new Error('Delete failed: ' + res.status);
       } catch (err) {
         console.error('Permanent delete failed for id', item.id, err);
@@ -244,7 +244,7 @@ async function deleteDetection(id) {
   try {
     // Get auth headers from centralized helper
     const headers = window.getAuthHeaders ? window.getAuthHeaders() : {};
-    const res = await fetch(`http://127.0.0.1:8000/delete/${id}`, { method: "DELETE", headers });
+    const res = await fetch(`http://localhost:8000/delete/${id}`, { method: "DELETE", headers });
 
     if (!res.ok) {
       console.error("Delete failed:", res.status);

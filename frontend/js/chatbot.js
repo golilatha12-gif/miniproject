@@ -1,3 +1,56 @@
+document.addEventListener('DOMContentLoaded', () => {
+  const promptEl = document.getElementById('prompt');
+  const sendBtn = document.getElementById('send');
+  const clearBtn = document.getElementById('clear');
+  const replyEl = document.getElementById('reply');
+  const statusEl = document.getElementById('status');
+
+  async function sendPrompt() {
+    const prompt = (promptEl.value || '').trim();
+    replyEl.classList.remove('error');
+    replyEl.textContent = '';
+    if (!prompt) {
+      statusEl.textContent = 'Please enter a prompt.';
+      return;
+    }
+    statusEl.textContent = 'Sending...';
+    sendBtn.disabled = true;
+    try {
+      const res = await fetch('/chatbot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!res.ok) {
+        const txt = await res.text();
+        replyEl.classList.add('error');
+        replyEl.textContent = `Error ${res.status}: ${txt}`;
+        statusEl.textContent = '';
+        return;
+      }
+
+      const data = await res.json();
+      replyEl.textContent = data.reply || '';
+      statusEl.textContent = '';
+    } catch (err) {
+      replyEl.classList.add('error');
+      replyEl.textContent = 'Network error: ' + (err.message || err);
+      statusEl.textContent = '';
+    } finally {
+      sendBtn.disabled = false;
+    }
+  }
+
+  sendBtn.addEventListener('click', sendPrompt);
+  promptEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      sendPrompt();
+    }
+  });
+  clearBtn.addEventListener('click', () => { promptEl.value = ''; replyEl.textContent = ''; statusEl.textContent = ''; });
+});
 const chatBody = document.getElementById("chatBody");
 const chatInput = document.getElementById("chatInput");
 
@@ -33,7 +86,7 @@ async function sendMessage() {
 
   try {
     // Chatbot is a public endpoint - no auth required
-    const response = await fetch("http://127.0.0.1:8000/chatbot", {
+    const response = await fetch("http://localhost:8000/chatbot", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: text })

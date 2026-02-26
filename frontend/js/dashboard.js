@@ -22,7 +22,7 @@ async function loadDashboard() {
   try {
     // Get auth headers from centralized helper
     const headers = window.getAuthHeaders ? window.getAuthHeaders() : {};
-    const res = await fetch("http://127.0.0.1:8000/history", { method: "GET", headers });
+    const res = await fetch("http://localhost:8000/history", { method: "GET", headers });
     
     if (!res.ok) {
       console.error("Failed to load dashboard:", res.status);
@@ -50,7 +50,7 @@ async function loadDashboard() {
     setInterval(async () => {
       try {
         const headers2 = window.getAuthHeaders ? window.getAuthHeaders() : {};
-        const r = await fetch("http://127.0.0.1:8000/history", { method: "GET", headers: headers2 });
+        const r = await fetch("http://localhost:8000/history", { method: "GET", headers: headers2 });
         if (!r.ok) return;
         const fresh = await r.json();
         // if newest detection changed, update

@@ -1,6 +1,6 @@
 async function loadPosts() {
   // GET /forum is public read - no auth required
-  const res = await fetch("http://127.0.0.1:8000/forum");
+  const res = await fetch("http://localhost:8000/forum");
   if (!res.ok) {
     console.error("Failed to load forum posts:", res.status);
     return;
@@ -38,7 +38,7 @@ document.getElementById("postForm").addEventListener("submit", async (e) => {
     const headers = window.getAuthHeaders ? window.getAuthHeaders() : {};
     headers['Content-Type'] = 'application/json';
     
-    const res = await fetch("http://127.0.0.1:8000/forum", {
+    const res = await fetch("http://localhost:8000/forum", {
       method: "POST",
       headers,
       body: JSON.stringify({ user, title, content })

@@ -5,7 +5,7 @@ document.getElementById("contactForm").addEventListener("submit", async (e) => {
 
   try {
     // Contact form is a public endpoint - no auth required
-    const res = await fetch("http://127.0.0.1:8000/contact", {
+    const res = await fetch("http://localhost:8000/contact", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, message })
@@ -27,7 +27,7 @@ const chatMessages = document.getElementById("chatMessages");
 const chatInput = document.getElementById("chatInput");
 const sendChat = document.getElementById("sendChat");
 
-const ws = new WebSocket("ws://127.0.0.1:8000/ws/chat");
+const ws = new WebSocket("ws://localhost:8000/ws/chat");
 
 ws.onmessage = (event) => {
   const div = document.createElement("div");

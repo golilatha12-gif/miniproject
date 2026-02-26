@@ -6,3 +6,4 @@ console.log("RiceGuard AI UI Loaded");
 // - Image preview
 // - Loading animation
 // - Display model results
+

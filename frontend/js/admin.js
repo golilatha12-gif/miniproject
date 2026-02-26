@@ -33,7 +33,7 @@
 
       try {
         // Use existing /login endpoint
-        const response = await fetch("http://127.0.0.1:8000/login", {
+        const response = await fetch("http://localhost:8000/login", {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
@@ -143,7 +143,7 @@
       const user = getStoredUser();
       const isSuperAdmin = user && user.email === "admin123@gmail.com";
 
-      const response = await fetch("http://127.0.0.1:8000/admin/users", {
+      const response = await fetch("http://localhost:8000/admin/users", {
         method: "GET",
         headers: getAuthHeaders()
       });
@@ -235,7 +235,7 @@
     if (!container) return;
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/admin/all-detections", {
+      const response = await fetch("http://localhost:8000/admin/all-detections", {
         method: "GET",
         headers: getAuthHeaders()
       });
@@ -298,7 +298,7 @@
     window.changeUserRole = async function(email, role) {
       if (!confirm(`Are you sure you want to change ${email} to role ${role}?`)) return;
       try {
-        const response = await fetch("http://127.0.0.1:8000/admin/set-role", {
+        const response = await fetch("http://localhost:8000/admin/set-role", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(window.getAuthHeaders ? window.getAuthHeaders() : {}) },
           body: JSON.stringify({ email: email, role: role })
@@ -321,7 +321,7 @@
     window.deleteUser = async function(email) {
       if (!confirm(`Permanently delete user ${email}? This cannot be undone.`)) return;
       try {
-        const response = await fetch("http://127.0.0.1:8000/admin/delete-user", {
+        const response = await fetch("http://localhost:8000/admin/delete-user", {
           method: "POST",
           headers: { "Content-Type": "application/json", ...(window.getAuthHeaders ? window.getAuthHeaders() : {}) },
           body: JSON.stringify({ email: email })
@@ -389,7 +389,7 @@
     if (!confirmed) return;
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/admin/set-role", {
+      const response = await fetch("http://localhost:8000/admin/set-role", {
         method: "POST",
         headers: {
           ...getAuthHeaders(),

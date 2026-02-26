@@ -61,7 +61,7 @@ async function detectDisease() {
     const headers = window.getAuthHeaders();
     // Don't set Content-Type header for FormData - browser handles boundary automatically
 
-    const response = await fetch("http://127.0.0.1:8000/detect", {
+    const response = await fetch("http://localhost:8000/detect", {
       method: "POST",
       headers,
       body: formData,

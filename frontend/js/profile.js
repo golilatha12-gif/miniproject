@@ -10,7 +10,7 @@ async function fetchUserProfile() {
   try {
     // Get auth headers from centralized helper
     const headers = window.getAuthHeaders ? window.getAuthHeaders() : {};
-    const response = await fetch("http://127.0.0.1:8000/me", { method: "GET", headers });
+    const response = await fetch("http://localhost:8000/me", { method: "GET", headers });
 
     const data = await response.json();
     if (!response.ok) {
@@ -56,36 +56,61 @@ document.getElementById("saveProfile")?.addEventListener("click", async () => {
 
   try {
     // Get auth headers from centralized helper
+    // Build headers safely and include JSON content-type
     const headers = window.getAuthHeaders ? window.getAuthHeaders() : {};
     headers['Content-Type'] = 'application/json';
 
-    const response = await fetch("http://127.0.0.1:8000/update-profile", {
-      method: "PUT",
-      headers,
-      body: JSON.stringify({ email: email || null, name: name || null, nickname: nickname || null }),
-    });
+    // Use localhost (requested) and ensure PUT method
+    const url = "http://localhost:8000/update-profile";
 
-    const data = await response.json();
+    try {
+      const response = await fetch(url, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ email: email || null, name: name || null, nickname: nickname || null }),
+      });
 
-    if (response.ok) {
+      // Try to parse JSON body safely (may be empty or non-json)
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (parseErr) {
+        // ignore parse error, will handle based on status
+      }
+
+      if (!response.ok) {
+        const serverMsg = data?.detail || data?.message || data?.error || `Server returned ${response.status}`;
+        // Clearer messaging for auth issues
+        if (response.status === 401) {
+          alert("Authorization error. Please log in again.");
+          if (window.handle401) {
+            window.handle401();
+          } else {
+            localStorage.removeItem('riceguard_user');
+            window.location.href = 'login.html';
+          }
+          return;
+        }
+        alert("Error updating profile: " + serverMsg);
+        return;
+      }
+
+      // Success path
       alert("Profile updated successfully!");
-      // Update localStorage with new user data
       const stored = (window.getStoredUser && window.getStoredUser()) || {};
-      stored.email = data.user?.email || stored.email;
+      stored.email = data?.user?.email || stored.email;
       if (window.setStoredUser && typeof window.setStoredUser === 'function') {
         window.setStoredUser(stored);
       } else {
         localStorage.setItem('riceguard_user', JSON.stringify(stored));
       }
-    } else {
-      alert("Error: " + (data.detail || data.message || "Failed to update profile"));
-      if (response.status === 401) {
-        if (window.handle401) {
-          window.handle401();
-        } else {
-          localStorage.removeItem('riceguard_user');
-          window.location.href = 'login.html';
-        }
+    } catch (networkErr) {
+      // Network errors (fetch failed) -> likely backend unreachable
+      console.error("Network error when saving profile:", networkErr);
+      if (networkErr instanceof TypeError || /failed to fetch/i.test(String(networkErr))) {
+        alert("Cannot reach backend at http://localhost:8000 — please ensure the backend server is running.");
+      } else {
+        alert("Error updating profile: " + (networkErr.message || networkErr));
       }
     }
   } catch (error) {
@@ -120,7 +145,7 @@ document.getElementById("changePasswordBtn")?.addEventListener("click", async ()
     const headers = (window.getAuthHeaders && window.getAuthHeaders()) || {};
     headers['Content-Type'] = 'application/json';
 
-    const response = await fetch("http://127.0.0.1:8000/change-password", {
+    const response = await fetch("http://localhost:8000/change-password", {
       method: "PUT",
       headers,
       body: JSON.stringify({ old_password: oldPassword, new_password: newPassword }),
@@ -151,14 +176,35 @@ document.getElementById("changePasswordBtn")?.addEventListener("click", async ()
 
 /* ===========================
    SIDEBAR TOGGLE
+   - Use a simple reusable toggle to show/hide the sidebar
+   - Toggle the CSS class that the existing stylesheet expects ("show")
+   - Uses classList.toggle() so the same logic works on all pages
    ============================ */
-document.getElementById("openSidebar")?.addEventListener("click", () => {
-  document.getElementById("sidebar").classList.add("active");
-});
+(() => {
+  const openBtn = document.getElementById("openSidebar");
+  const closeBtn = document.getElementById("closeSidebar");
+  const sidebar = document.getElementById("sidebar");
 
-document.getElementById("closeSidebar")?.addEventListener("click", () => {
-  document.getElementById("sidebar").classList.remove("active");
-});
+  if (!sidebar) return;
+
+  // Toggle function reused for open and close
+  function toggleMenu(e) {
+    e && e.preventDefault();
+    sidebar.classList.toggle('show');
+  }
+
+  if (openBtn) openBtn.addEventListener('click', toggleMenu);
+  if (closeBtn) closeBtn.addEventListener('click', toggleMenu);
+
+  // Close when clicking outside the sidebar (optional and non-invasive)
+  document.addEventListener('click', (ev) => {
+    // If sidebar is open and click is outside both the sidebar and open button, close it
+    if (!sidebar.classList.contains('show')) return;
+    const target = ev.target;
+    if (sidebar.contains(target) || (openBtn && openBtn.contains(target))) return;
+    sidebar.classList.remove('show');
+  });
+})();
 
 /* ===========================
    INIT
